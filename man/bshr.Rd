@@ -48,12 +48,7 @@ by computing pointwise mean and 95\% bootstrap confidence intervals.
 }
 \examples{
 \dontrun{
-df <- data.frame(
-  age = c(5, 10, 7, 12),
-  dead = c(1, 0, 1, 0),
-  group = c("control", "control", "treatment", "treatment")
-)
-boot_hr <- bshr(df, contr = "control", var = "treatment", n_boot = 100)
+boot_hr <- bshr(data=example_data, contr = "Control", var = "GTE", n_boot = 100)
 head(boot_hr)
 }
 }

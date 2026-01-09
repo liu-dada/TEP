@@ -41,8 +41,11 @@ the first and last significant times and the median survival time.
 }
 \examples{
 \dontrun{
-# Suppose you have survival data and bootstrap HR
-p <- band_func(data1 = surv_data, data2 = bshr_data, lim0 = 0, lim1 = 1500, var = "treatment")
+boot_hr <- bshr(data=example_data, contr = "Control", var = "GTE", n_boot = 100)
+p <- band_func(data1 = example_data, data2 = boot_hr, lim0 = 0, lim1 = 1500, var = "GTE")
+print(p)
+hr_df <- hazardSE(data=example_data, contr = "Control", var = "GTE")
+p <- band_func(data1 = example_data, data2 = hr_df, lim0 = 0, lim1 = 1500, var = "GTE")
 print(p)
 }
 }

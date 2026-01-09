@@ -37,8 +37,8 @@ and its confidence bounds. A horizontal dashed line is added at 0 for reference.
 \examples{
 \dontrun{
 # Suppose bshr() has been used to create HR data
-hr_data <- bshr(df, contr = "control", var = "treatment", n_boot = 100)
-p <- hrplot(hr_data, var = "treatment", lim0 = 0, lim1 = 20)
+boot_hr <- bshr(data=example_data, contr = "Control", var = "GTE", n_boot = 100)
+p <- hrplot(boot_hr, var = "GTE")
 print(p)
 }
 }

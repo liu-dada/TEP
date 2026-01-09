@@ -35,12 +35,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' df <- data.frame(
-#'   age = c(5, 10, 7, 12),
-#'   dead = c(1, 0, 1, 0),
-#'   group = c("control", "control", "treatment", "treatment")
-#' )
-#' hr_df <- hazardSE(df, contr = "control", var = "treatment")
+#' hr_df <- hazardSE(data=example_data, contr = "Control", var = "GTE")
 #' head(hr_df)
 #' }
 

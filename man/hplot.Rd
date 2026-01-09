@@ -38,8 +38,8 @@ treatment groups. The y-axis is displayed on a log scale.
 \examples{
 \dontrun{
 # Suppose hazardSE() has been used to create hazard data
-hr_data <- hazardSE(df, contr = "control", var = "treatment")
-p <- hplot(hr_data, contr = "control", var = "treatment", lim0 = 0, lim1 = 20)
+hr_data <- hazardSE(data=example_data, contr = "Control", var = "GTE")
+p <- hplot(hr_data, contr = "Control", var = "GTE")
 print(p)
 }
 }

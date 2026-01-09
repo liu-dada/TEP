@@ -14,8 +14,8 @@ make_km_band(
   pad_bn = c(0, 6, 4, 2),
   band_y = 3,
   wa_percentile = 0.9,
-  ctrl_name = "WT",
-  treat_name = "KO"
+  ctrl_name = "Control",
+  treat_name = "GTE"
 )
 }
 \arguments{
@@ -69,20 +69,16 @@ a Fisher exact test at the specified survival percentile.
 library(survival)
 library(ggplot2)
 
-set.seed(123)
-dat <- data.frame(
-  age = runif(200, 1, 1500),
-  dead = rbinom(200, 1, 0.4),
-  group = sample(c("WT", "KO"), 200, replace = TRUE)
-)
+boot_hr <- bshr(data=example_data, contr = "Control", var = "GTE", n_boot = 100)
+p <- band_func(data1 = example_data, data2 = boot_hr, lim0 = 0, lim1 = 1500, var = "GTE")
 
 km_plot <- survminer::ggsurvplot(
-  survfit(Surv(age, dead) ~ group, data = dat),
-  data = dat,
+  survfit(Surv(age, dead) ~ group, data = example_data),
+  data = example_data,
   palette = c("black", "red"),
   risk.table = FALSE
 )$plot
 
-make_km_band(km_plot, band_plot = NULL, data = dat)
+make_km_band(km_plot, band_plot = p, data = example_data)
 
 }
