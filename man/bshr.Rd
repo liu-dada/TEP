@@ -4,7 +4,7 @@
 \alias{bshr}
 \title{Bootstrap Hazard Ratio Curve}
 \usage{
-bshr(data, contr, var, n_boot = 1000, step = 1, eps = 1e-09)
+bshr(data, contr, var, n_boot = 1000, dt = 0.5, eps = 1e-09, step = 1)
 }
 \arguments{
 \item{data}{A \code{data.frame} containing survival data. Must include columns:
@@ -20,9 +20,11 @@ bshr(data, contr, var, n_boot = 1000, step = 1, eps = 1e-09)
 
 \item{n_boot}{Integer. Number of bootstrap resamples (default 1000).}
 
-\item{step}{Numeric. Spacing of the common time grid (default 1).}
+\item{dt}{A data frame containing survival data.}
 
 \item{eps}{Numeric. Small offset to avoid \code{log(0)} (default 1e-9).}
+
+\item{step}{Numeric. Spacing of the common time grid (default 1).}
 }
 \value{
 A \code{data.frame} with columns:

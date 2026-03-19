@@ -1,6 +1,12 @@
 utils::globalVariables(c(
-  "age", "dead", "group",
-  "median", "lower", "upper"
+  "age",    # survival time
+  "dead",   # event indicator
+  "group",  # grouping variable
+  "median", # from KM summaries
+  "lower",  # from KM summaries
+  "upper",  # from KM summaries
+  "surv",   # column in survfit data frame (Wang & Allison)
+  "time"    # column in survfit data frame (Wang & Allison)
 ))
 #' Utility Helpers for Time, Percent Change, and KM Summaries
 #'

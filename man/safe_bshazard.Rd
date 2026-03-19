@@ -18,9 +18,24 @@ safe_bshazard(formula, data, ..., reps = 10, age_sd = NULL)
 \item{age_sd}{Standard deviation for age jittering}
 }
 \value{
-A fitted bshazard model object
+A fitted bshazard model object. The returned object includes
+additional attributes:
+\itemize{
+\item \code{used_aug}: logical indicating whether data augmentation was used
+\item \code{aug_reason}: character string describing the error that triggered augmentation (if used)
+}
 }
 \description{
 This function wraps \code{bshazard::bshazard()} and automatically retries
 with jittered data augmentation if a singular system error occurs.
+}
+\details{
+If the initial model fit fails due to a computationally singular system,
+the function retries using jittered data augmentation via
+\code{augment_surv_data()}.
+
+The function also records whether augmentation was used. This information
+is stored both as attributes in the returned model object and in a
+package-level environment. Use \code{reset_aug_state()} to reset the
+global tracking state.
 }

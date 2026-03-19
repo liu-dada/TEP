@@ -49,38 +49,29 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(
 #band
 band_func <- function(data1,data2,lim0=0,lim1=1500,var){
   fit<- survfit(Surv(age, dead) ~ group, data = data1)
-  #median
   m <- surv_median(fit)
   m$strata <- gsub('group=','',m$strata)
 
-  #ci upper<0 or ci lower>0
   aw0 <- data2[!is.na(data2$loghr),]
   aw0$mean2 <- ifelse(aw0$up<0|aw0$low>0,aw0$loghr,0)
-
 
   if(length(unique(aw0$mean2))==1){p <- NULL}else{
 
     df <- aw0[,c('time','name','loghr','up','low','mean2')]
 
-    #significant min and max
     firstf <- min(df$time[df$mean2!=0])
     lastf <- max(df$time[df$mean2!=0])
 
-    #add median survival time
     mf <- m[m$strata==var,'median']
 
-
-    #mark x axis
     br <- data.frame(bre=c(0,400,800,1200,1600,firstf,lastf,mf),
                      co=c(rep('black',5),rep('black',2),'purple'))
     br <- br[order(br$bre),]
 
     p <- ggplot(data=df, aes(x = time, y = 3, color = mean2)) +
-
       geom_line(size = 10)  +
       scale_colour_gradient2(midpoint = 0,high = "darkred", mid = 'white', low = "seagreen") +
       theme(legend.position="none")+
-
       theme_classic()+
       scale_x_continuous(breaks = br$bre,labels = br$bre,limits = c(lim0,lim1))+
       theme(axis.title.y=element_text(angle=0, vjust = 0.5),

@@ -70,25 +70,18 @@ make_km_band <- function(km_plot, band_plot, data,
   xmax  <- max(data$age, na.rm = TRUE)
   xspan <- xmax - xmin
 
-  # ---- log-rank p-value ----
+  # --- Log-rank p-value ---
   lr_p <- tryCatch({
     sdiff <- survival::survdiff(survival::Surv(age, dead) ~ group, data = data)
     stats::pchisq(sdiff$chisq, df = length(sdiff$n) - 1, lower.tail = FALSE)
   }, error = function(e) NA_real_)
-  pval_lab <- if (is.na(lr_p)) "Log-rank pval: NA"
-  else paste0("Log-rank pval: ", format.pval(lr_p, digits = 3, eps = 1e-4))
+  pval_lab <- if (is.na(lr_p)) "Log-rank pval: NA" else paste0("Log-rank pval: ", format.pval(lr_p, digits = 3, eps = 1e-4))
 
-  # positions (bottom-left)
-  p_x     <- xmin + 0.05 * xspan
-  p_y_top <- 0.20
-  p_y_wa  <- max(0.02, p_y_top - 0.07)
-
-  # ---- Wang–Allison p-value (Fisher test at pooled KM percentile) ----
+  # --- Wang-Allison p-value ---
   wa_label <- tryCatch({
     grps <- sort(unique(as.character(data$group)))
     if (length(grps) != 2) stop("Need exactly 2 groups for WA test.")
-    fit <- survival::survfit(survival::Surv(age, dead) ~ 1,
-                             data = data[data$group %in% grps, , drop = FALSE])
+    fit <- survival::survfit(survival::Surv(age, dead) ~ 1, data = data[data$group %in% grps, , drop = FALSE])
     sf  <- data.frame(time = fit$time, surv = fit$surv)
     thr <- sf$time[which(sf$surv <= (1 - wa_percentile))[1]]
     if (!is.finite(thr)) stop("Percentile threshold not reached.")
@@ -102,69 +95,59 @@ make_km_band <- function(km_plot, band_plot, data,
     paste0("Wang-Allison pval: ", format.pval(ft$p.value, digits = 3, eps = 1e-4))
   }, error = function(e) "Wang-Allison pval: NA")
 
+  # --- Placeholder band plot ---
   if (is.null(band_plot)) {
-    band_plot <- ggplot2::ggplot() + ggplot2::theme_classic() +
+    band_plot <- ggplot2::ggplot() +
+      ggplot2::theme_classic() +
       ggplot2::annotate("text", x = xmin + 0.5 * xspan, y = band_y,
                         label = "no significant interval",
                         hjust = 0.5, vjust = 0.5, size = 3.8) +
-      ggplot2::coord_cartesian(ylim = c(band_y - 0.3, band_y + 0.3),
-                               clip = "off")
+      ggplot2::coord_cartesian(ylim = c(band_y - 0.3, band_y + 0.3), clip = "off")
   }
 
-  ## ---------- get correct strata names from km_plot$data ----------
-  if (!"strata" %in% names(km_plot$data)) {
-    stop("km_plot$data has no 'strata' column; cannot lock colors.")
-  }
+  # --- Ensure km_plot strata exist ---
+  if (!"strata" %in% names(km_plot$data)) stop("km_plot$data has no 'strata' column; cannot lock colors.")
   strata_vals <- km_plot$data$strata
-  strata_lev  <- levels(strata_vals)
-  if (is.null(strata_lev)) strata_lev <- unique(strata_vals)
+  strata_lev  <- unique(as.character(strata_vals))
 
   ctrl_strata  <- grep(ctrl_name, strata_lev, value = TRUE)[1]
-  if (is.na(ctrl_strata)) {
-    stop("Could not find a strata level containing ctrl_name = ", ctrl_name)
-  }
-
+  if (is.na(ctrl_strata)) stop("Could not find a strata level containing ctrl_name = ", ctrl_name)
   treat_strata <- grep(treat_name, strata_lev, value = TRUE)[1]
-  if (is.na(treat_strata)) {
-    treat_strata <- setdiff(strata_lev, ctrl_strata)[1]
-  }
+  if (is.na(treat_strata)) treat_strata <- setdiff(strata_lev, ctrl_strata)[1]
 
+  # --- Only keep levels that exist in the data to avoid warnings ---
   km_color_map <- setNames(c("black", "red"), c(ctrl_strata, treat_strata))
-  ## -------------------------------------------------------------------------
+  km_color_map <- km_color_map[names(km_color_map) %in% strata_lev]
 
-  # --- KM pane ---
+  # --- KM plot core ---
   km_core <- km_plot +
     ggplot2::labs(y = "Survival probability") +
     ggplot2::scale_color_manual(values = km_color_map, breaks = names(km_color_map)) +
     ggplot2::scale_fill_manual(values  = km_color_map, breaks = names(km_color_map)) +
-    ggplot2::scale_x_continuous(limits = c(xmin, xmax),
-                                expand = ggplot2::expansion(mult = 0)) +
+    ggplot2::scale_x_continuous(limits = c(xmin, xmax), expand = ggplot2::expansion(mult = 0)) +
     ggplot2::theme_classic() +
     ggplot2::theme(
       axis.title.x = ggplot2::element_blank(),
       axis.text.x  = ggplot2::element_blank(),
       axis.ticks.x = ggplot2::element_blank(),
-      plot.margin  = grid::unit(c(pad_km[1], pad_km[2], pad_km[3], 2), "pt"),
+      plot.margin  = grid::unit(pad_km, "pt"),
       axis.title.y = ggplot2::element_text(margin = ggplot2::margin(r = 0)),
       axis.text.y  = ggplot2::element_text(margin = ggplot2::margin(r = 0))
     ) +
-    ggplot2::annotate("text", x = p_x, y = p_y_top,
+    ggplot2::annotate("text", x = xmin + 0.05 * xspan, y = 0.20,
                       label = pval_lab, hjust = 0, vjust = 0, size = 5) +
-    ggplot2::annotate("text", x = p_x, y = p_y_wa,
+    ggplot2::annotate("text", x = xmin + 0.05 * xspan, y = 0.13,
                       label = wa_label, hjust = 0, vjust = 0, size = 5)
 
-  # --- Band pane ---
+  # --- Band plot core ---
   band_core <- band_plot +
     ggplot2::labs(title = NULL, y = NULL, x = xlab) +
-    ggplot2::theme(plot.title  = ggplot2::element_blank(),
+    ggplot2::theme(plot.title = ggplot2::element_blank(),
                    axis.title.y = ggplot2::element_blank()) +
-    ggplot2::scale_x_continuous(limits = c(xmin, xmax),
-                                expand = ggplot2::expansion(mult = 0)) +
-    ggplot2::scale_y_continuous(limits = c(band_y - 0.3, band_y + 0.3),
-                                expand = ggplot2::expansion(mult = 0)) +
+    ggplot2::scale_x_continuous(limits = c(xmin, xmax), expand = ggplot2::expansion(mult = 0)) +
+    ggplot2::scale_y_continuous(limits = c(band_y - 0.3, band_y + 0.3), expand = ggplot2::expansion(mult = 0)) +
     ggplot2::annotate("text", x = xmin + 0.01 * xspan, y = band_y,
-                      label = treat_name, hjust = 0, vjust = 0.5,
-                      size = 3.8, color = "black") +
+                      label = treat_name, hjust = 0, vjust = 0.5, size = 3.8, color = "black") +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::theme_classic() +
     ggplot2::theme(
@@ -174,5 +157,6 @@ make_km_band <- function(km_plot, band_plot, data,
       plot.margin  = grid::unit(pad_bn, "pt")
     )
 
-  (km_core / band_core) + patchwork::plot_layout(heights = heights)
+  # --- Combine with patchwork ---
+  return((km_core / band_core) + patchwork::plot_layout(heights = heights))
 }

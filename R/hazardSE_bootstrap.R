@@ -13,6 +13,7 @@
 #' @param n_boot Integer. Number of bootstrap resamples (default 1000).
 #' @param step Numeric. Spacing of the common time grid (default 1).
 #' @param eps Numeric. Small offset to avoid `log(0)` (default 1e-9).
+#' @param dt A data frame containing survival data.
 #'
 #' @return A `data.frame` with columns:
 #'   - `time`: grid of time points
@@ -31,6 +32,9 @@
 #' @export
 #' @importFrom stats approx
 #' @importFrom stats quantile
+#' @importFrom stats rnorm
+#' @importFrom purrr reduce
+#' @importFrom dplyr full_join
 #' @keywords survival hazard ratio bootstrap
 #'
 #' @examples
@@ -48,79 +52,72 @@
 #   contr : name of control group (character)
 #   var   : name of treatment group (character)
 #==========================================================
-bshr <- function(data, contr, var,
-                 n_boot    = 1000,
-                 step      = 1,      # spacing of time grid (days)
-                 eps       = 1e-9) { # tiny offset to avoid log(0)
+bshr <- function(data, contr, var, n_boot = 1000, dt = 0.5, eps = 1e-9, step = 1) {
 
-  # keep only the two groups of interest
   temp <- subset(data, group %in% c(var, contr))
 
-  #--------------------------------------------------------
-  # 1) Build a GLOBAL time grid, common to all bootstraps
-  #    Use the overlap of the two groups' event-time ranges
-  #--------------------------------------------------------
-  base0 <- safe_bshazard(Surv(age, dead) ~ 1,
-                         data = subset(temp, group == contr))
-  base1 <- safe_bshazard(Surv(age, dead) ~ 1,
-                         data = subset(temp, group == var))
+  # Stabilized bootstrap helper
+  bshr_stabilized_safe <- function(temp, contr, var, n_boot, step, eps) {
 
-  min_common <- max(min(base0$time[base0$hazard > 0], na.rm = TRUE),
-                    min(base1$time[base1$hazard > 0], na.rm = TRUE))
-  max_common <- min(max(base0$time[base0$hazard > 0], na.rm = TRUE),
-                    max(base1$time[base1$hazard > 0], na.rm = TRUE))
+    # Fit hazards on original data
+    base0 <- safe_bshazard(Surv(age, dead) ~ 1, data = subset(temp, group == contr))
+    base1 <- safe_bshazard(Surv(age, dead) ~ 1, data = subset(temp, group == var))
 
-  global_times <- seq(from = min_common, to = max_common, by = step)
+    min_common <- max(min(base0$time[base0$hazard > 0], na.rm = TRUE),
+                      min(base1$time[base1$hazard > 0], na.rm = TRUE))
+    max_common <- min(max(base0$time[base0$hazard > 0], na.rm = TRUE),
+                      max(base1$time[base1$hazard > 0], na.rm = TRUE))
 
-  #--------------------------------------------------------
-  # 2) Bootstrap: for each resample, compute log(HR(t))
-  #    on the SAME global_times grid
-  #--------------------------------------------------------
-  # pre-allocate list to store one vector of logHR per bootstrap
-  loghr_list <- vector("list", length = n_boot)
+    global_times <- seq(from = min_common, to = max_common, by = step)
+    loghr_list <- vector("list", length = n_boot)
 
-  for (b in seq_len(n_boot)) {
-    # resample subjects with replacement
-    bt <- temp[sample(seq_len(nrow(temp)), nrow(temp), replace = TRUE), ]
+    for (b in seq_len(n_boot)) {
+      bt <- temp[sample(seq_len(nrow(temp)), nrow(temp), replace = TRUE), ]
 
-    fit0 <- safe_bshazard(Surv(age, dead) ~ 1,
-                          data = subset(bt, group == contr))
-    fit1 <- safe_bshazard(Surv(age, dead) ~ 1,
-                          data = subset(bt, group == var))
+      # Add tiny jitter to avoid singular system
+      bt$age <- bt$age + rnorm(nrow(bt), mean = 0, sd = 1e-8)
 
-    bh0 <- data.frame(time = fit0$time, hazard = fit0$hazard)
-    bh1 <- data.frame(time = fit1$time, hazard = fit1$hazard)
+      # Try-catch for each group
+      fit0 <- tryCatch(
+        safe_bshazard(Surv(age, dead) ~ 1, data = subset(bt, group == contr)),
+        error = function(e) NULL
+      )
+      fit1 <- tryCatch(
+        safe_bshazard(Surv(age, dead) ~ 1, data = subset(bt, group == var)),
+        error = function(e) NULL
+      )
 
-    # interpolate both hazards on the COMMON grid
-    # rule = 2: use boundary values outside range (avoids extra NAs)
-    fi0 <- approx(x = bh0$time, y = bh0$hazard,
-                  xout = global_times, rule = 2)
-    fi1 <- approx(x = bh1$time, y = bh1$hazard,
-                  xout = global_times, rule = 2)
+      if (is.null(fit0) || is.null(fit1)) next  # skip this resample
 
-    h0 <- pmax(fi0$y, eps)  # avoid 0
-    h1 <- pmax(fi1$y, eps)
+      bh0 <- data.frame(time = fit0$time, hazard = fit0$hazard)
+      bh1 <- data.frame(time = fit1$time, hazard = fit1$hazard)
 
-    loghr_list[[b]] <- log(h1 / h0)
+      fi0 <- approx(x = bh0$time, y = bh0$hazard, xout = global_times, rule = 2)
+      fi1 <- approx(x = bh1$time, y = bh1$hazard, xout = global_times, rule = 2)
+
+      h0 <- pmax(fi0$y, eps)
+      h1 <- pmax(fi1$y, eps)
+
+      loghr_list[[b]] <- log(h1 / h0)
+    }
+
+    # Combine only non-NULL results
+    loghr_mat <- do.call(cbind, loghr_list[sapply(loghr_list, is.numeric)])
+    keep <- apply(!is.na(loghr_mat), 1, any)
+    loghr_mat <- loghr_mat[keep, , drop = FALSE]
+    time_vec <- global_times[keep]
+
+    data.frame(
+      time  = time_vec,
+      loghr = apply(loghr_mat, 1, mean, na.rm = TRUE),
+      low   = apply(loghr_mat, 1, quantile, probs = 0.025, na.rm = TRUE),
+      up    = apply(loghr_mat, 1, quantile, probs = 0.975, na.rm = TRUE),
+      name  = var
+    )
   }
 
-  #--------------------------------------------------------
-  # 3) Combine bootstraps into a matrix and summarise
-  #--------------------------------------------------------
-  loghr_mat <- do.call(cbind, loghr_list)  # rows: time, cols: bootstrap
-
-  # drop rows where everything is NA (should be rare with rule = 2)
-  keep <- apply(!is.na(loghr_mat), 1, any)
-  loghr_mat <- loghr_mat[keep, , drop = FALSE]
-  time_vec  <- global_times[keep]
-
-  final <- data.frame(
-    time  = time_vec,
-    loghr = apply(loghr_mat, 1, mean,     na.rm = TRUE),
-    up    = apply(loghr_mat, 1, quantile, probs = 0.975, na.rm = TRUE),
-    low   = apply(loghr_mat, 1, quantile, probs = 0.025, na.rm = TRUE)
-  )
-
-  final$name <- var
+  # Run stabilized safe bootstrap
+  final <- bshr_stabilized_safe(temp = temp, contr = contr, var = var,
+                                n_boot = n_boot, step = step, eps = eps)
   return(final)
 }

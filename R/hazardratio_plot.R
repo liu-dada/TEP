@@ -39,20 +39,16 @@
 #hazard ratio plot
 hrplot <- function(data,var,lim0=0,lim1=1500){
   temp <- data[,c('time','loghr','low','up')]
-  #wide to long
   t <- gather(temp, stats, value, 2:4, factor_key=TRUE)
 
-  p <- ggplot(t,aes(x=time,y=value))+
+  ggplot(t,aes(x=time,y=value))+
     geom_line(aes(linetype=stats))+
     xlab("Age (Days)")+
     ylab('Hazard Ratio')+
     ggtitle(var)+
     theme_classic(base_size = 20)+
     scale_linetype_manual(values=c('solid','dashed','dashed'))+
-    geom_hline(yintercept=0, linetype="dashed",
-               color = "black", size=1)+
+    geom_hline(yintercept=0, linetype="dashed", color = "black", size=1)+
     xlim(lim0,lim1)
-
-  return(p)
-
 }
+

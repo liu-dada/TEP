@@ -49,7 +49,6 @@ NULL
 #' @rdname wang_allison_helpers
 #' @export
 wa_percentile_age <- function(df, p = 0.90, groups = NULL) {
-  surv <- NULL  # trick R CMD check
   if (!is.null(groups)) df <- df[df$group %in% groups, , drop = FALSE]
   fit <- survfit(Surv(age, dead) ~ 1, data = df)
   sf <- data.frame(time = fit$time, surv = fit$surv)
@@ -62,7 +61,7 @@ wa_percentile_age <- function(df, p = 0.90, groups = NULL) {
 #' @export
 wa_counts <- function(df, t_star, ctrl, treat) {
   df2 <- df[df$group %in% c(ctrl, treat), c("group","age"), drop = FALSE]
-  df2$to_threshold <- df2$age >= t_star  # TRUE/FALSE
+  df2$to_threshold <- df2$age >= t_star
   tab <- table(df2$group, df2$to_threshold)
   if (!"FALSE" %in% colnames(tab)) tab <- cbind(tab, `FALSE` = 0L)
   if (!"TRUE"  %in% colnames(tab)) tab <- cbind(tab,  `TRUE` = 0L)
@@ -80,9 +79,7 @@ wang_allison_test <- function(df, ctrl, treat, p = 0.90,
   } else {
     t_star <- wa_percentile_age(df[df$group == ctrl, ], p = p)
   }
-  if (!is.finite(t_star)) {
-    return(list(t_star = NA_real_, table = NA, fisher = NA))
-  }
+  if (!is.finite(t_star)) return(list(t_star = NA_real_, table = NA, fisher = NA))
   tab <- wa_counts(df, t_star, ctrl, treat)
   ft  <- fisher.test(tab, alternative = "two.sided")
   list(t_star = t_star, table = tab, fisher = ft)

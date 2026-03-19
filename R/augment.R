@@ -71,5 +71,3 @@ augment_surv_data <- function(df, reps = 10, age_sd = NULL) {
 
   out
 }
-
-

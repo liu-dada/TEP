@@ -40,10 +40,9 @@
 #hazard rate plot
 hplot <- function(data,contr,var,lim0=0,lim1=1500){
   temp <- data[,c('time','h0','h1','name')]
-  #wide to long
   t <- gather(temp, stats, value, 2:3, factor_key=TRUE)
 
-  p <- ggplot(t,aes(x=time,y=value))+
+  ggplot(t,aes(x=time,y=value))+
     geom_line(aes(color=stats))+
     xlab("Age (Days)")+
     ylab('Mortality Hazard')+
@@ -53,7 +52,4 @@ hplot <- function(data,contr,var,lim0=0,lim1=1500){
     scale_color_manual(values=c('black','red'),labels=c(contr,var))+
     labs(color = "Group")+
     xlim(lim0,lim1)
-
-  return(p)
-
 }
