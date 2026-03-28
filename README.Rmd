@@ -39,25 +39,25 @@ remotes::install_github("liu-dada/TEP")
 
 ```{r example}
 library(TEP)
-set.seed(123)
-dat <- data.frame(
-age = runif(200, 1, 1500),
-dead = rbinom(200, 1, 0.4),
-group = sample(c("Control", "Treatment"), 200, replace = TRUE)
-)
+data(example_data_sig)
+head(example_data_sig)
 
 #Bootstrap hazard ratio
 
 hr <- bshr(
-data = dat,
+data = example_data_sig,
 contr = "Control",
-var = "Treatment",
+var = "GTE",
 n_boot = 100
 )
 
 #Plot hazard ratio
 
-hrplot(hr, var = "Treatment")
+hrplot(hr, var = "GTE")
+
+#Plot KM curve with band 
+all_func(example_data_sig,var='GTE',contr = 'Control')
+
 ```
 
 
