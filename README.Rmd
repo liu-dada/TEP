@@ -47,16 +47,16 @@ head(example_data_sig)
 hr <- bshr(
 data = example_data_sig,
 contr = "Control",
-var = "GTE",
+var = "Treatment",
 n_boot = 100
 )
 
 #Plot hazard ratio
 
-hrplot(hr, var = "GTE")
+hrplot(hr, var = "Treatment")
 
 #Plot KM curve with band 
-all_func(example_data_sig,var='GTE',contr = 'Control')
+all_func(example_data_sig,var='Treatment',contr = 'Control')
 
 ```
 
